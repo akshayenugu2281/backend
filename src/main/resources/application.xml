@@ -41,7 +41,7 @@
     <entry key="app.jwt.refresh-ttl">7d</entry>
 
     <!-- CORS -->
-    <entry key="app.cors.allowed-origins">${CORS_ORIGINS:http://localhost:5173,http://localhost:3000,https://*.vercel.app}</entry>
+    <entry key="app.cors.allowed-origins">${CORS_ORIGINS:http://localhost:5173,http://localhost:3000,https://*.vercel.app,https://*.onrender.com}</entry>
 
     <!-- Seed Users -->
     <entry key="app.seed.admin-email">${ADMIN_EMAIL:admin@library360.local}</entry>
