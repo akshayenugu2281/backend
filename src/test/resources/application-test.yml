@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:library360test;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  mail:
+    host: localhost
+    port: 1025
+app:
+  jwt:
+    issuer: library360-test
+    secret: VGhpc0lzQUxvY2FsVGVzdEtleUZvckxpYnJhcnkzNjA=
+    access-ttl: 15m
+    refresh-ttl: 7d
+  cors:
+    allowed-origins: http://localhost:5173
+  seed:
+    admin-email: test-admin@library360.local
+    admin-password:
+    librarian-email: test-librarian@library360.local
+    librarian-password:
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+logging:
+  level:
+    com.library360: WARN
+    org.springframework.security: WARN
