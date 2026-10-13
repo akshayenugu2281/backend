@@ -44,7 +44,7 @@ app:
     refresh-ttl: 7d
 
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000,https://*.vercel.app,https://*.onrender.com}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000,https://library360-library360upgraded.vercel.app,https://*.vercel.app,https://*.onrender.com}
 
   seed:
     admin-email: ${ADMIN_EMAIL:admin@library360.local}
