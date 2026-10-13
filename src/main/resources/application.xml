@@ -8,9 +8,9 @@
     <entry key="spring.threads.virtual.enabled">true</entry>
 
     <!-- Datasource (PostgreSQL on Render) -->
-    <entry key="spring.datasource.url">${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:library360}?sslmode=${DB_SSL_MODE:prefer}}}</entry>
-    <entry key="spring.datasource.username">${DB_USER:library360}</entry>
-    <entry key="spring.datasource.password">${DB_PASSWORD:library360}</entry>
+    <entry key="spring.datasource.url">${SPRING_DATASOURCE_URL:${DATABASE_URL:${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:library360}?sslmode=${DB_SSL_MODE:prefer}}}}</entry>
+    <entry key="spring.datasource.username">${DB_USER:${DB_USERNAME:${POSTGRES_USER:library360}}}</entry>
+    <entry key="spring.datasource.password">${DB_PASSWORD:${POSTGRES_PASSWORD:library360}}</entry>
     <entry key="spring.datasource.driver-class-name">${DB_DRIVER:org.postgresql.Driver}</entry>
     <entry key="spring.datasource.hikari.maximum-pool-size">${DB_POOL_MAX:10}</entry>
     <entry key="spring.datasource.hikari.minimum-idle">${DB_POOL_MIN:2}</entry>
