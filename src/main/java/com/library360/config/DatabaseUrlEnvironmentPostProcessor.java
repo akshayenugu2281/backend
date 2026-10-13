@@ -5,16 +5,23 @@ import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Normalizes Render and cloud-provided database URLs and credentials into standard
- * Spring datasource properties (spring.datasource.url, username, password, driver-class-name).
+ * Normalizes Render, Docker, and cloud-provided database URLs into valid PostgreSQL JDBC URLs
+ * by stripping embedded user/password credentials from the URL and setting them into
+ * standard Spring datasource username and password properties.
  */
 public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProcessor {
+
+    // Matches: [jdbc:]postgres[ql]://[user[:pass]@]host[:port][/dbname][?query]
+    private static final Pattern PG_URL_PATTERN = Pattern.compile(
+            "^(?:jdbc:)?postgres(?:ql)?://(?:([^:@/]+)(?::([^@/]*))?@)?([^:/?#]+)(?::(\\d+))?(?:/([^?#]*))?(?:\\?(.*))?$"
+    );
 
     private static final List<String> URL_KEYS = List.of(
             "DATABASE_URL",
@@ -41,77 +48,75 @@ public class DatabaseUrlEnvironmentPostProcessor implements EnvironmentPostProce
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         Map<String, Object> props = new HashMap<>();
 
-        // 1. Resolve explicit user / password if set under any common name
-        String resolvedUser = findProperty(environment, USER_KEYS);
-        if (resolvedUser != null && !resolvedUser.isBlank()) {
-            props.put("spring.datasource.username", resolvedUser.trim());
-        }
+        // 1. Resolve explicit user/password if set
+        String explicitUser = findProperty(environment, USER_KEYS);
+        String explicitPassword = findProperty(environment, PASSWORD_KEYS);
 
-        String resolvedPassword = findProperty(environment, PASSWORD_KEYS);
-        if (resolvedPassword != null && !resolvedPassword.isBlank()) {
-            props.put("spring.datasource.password", resolvedPassword.trim());
-        }
-
-        // 2. Resolve database URL
+        // 2. Resolve database URL from any standard environment variable
         String rawUrl = findProperty(environment, URL_KEYS);
+
         if (rawUrl != null && !rawUrl.isBlank()) {
             rawUrl = rawUrl.trim();
+            Matcher matcher = PG_URL_PATTERN.matcher(rawUrl);
 
-            // Strip "jdbc:" if followed by postgres:// or postgresql:// for URI parsing
-            String uriString = rawUrl;
-            boolean hadJdbcPrefix = false;
-            if (uriString.startsWith("jdbc:postgres://") || uriString.startsWith("jdbc:postgresql://")) {
-                uriString = uriString.substring(5);
-                hadJdbcPrefix = true;
-            }
+            if (matcher.matches()) {
+                String urlUser = matcher.group(1);
+                String urlPass = matcher.group(2);
+                String host = matcher.group(3);
+                String portStr = matcher.group(4);
+                String dbName = matcher.group(5);
+                String query = matcher.group(6);
 
-            if (uriString.startsWith("postgres://") || uriString.startsWith("postgresql://")) {
-                try {
-                    String normalized = uriString.replaceFirst("^postgres(ql)?://", "http://");
-                    URI uri = new URI(normalized);
-
-                    String userInfo = uri.getUserInfo();
-                    String host = uri.getHost();
-                    int port = uri.getPort() > 0 ? uri.getPort() : 5432;
-                    String path = uri.getPath();
-                    if (path != null && path.startsWith("/")) {
-                        path = path.substring(1);
-                    }
-
-                    if (userInfo != null && userInfo.contains(":")) {
-                        String[] parts = userInfo.split(":", 2);
-                        props.put("spring.datasource.username", parts[0]);
-                        props.put("spring.datasource.password", parts[1]);
-                    } else if (userInfo != null && !userInfo.isBlank()) {
-                        props.put("spring.datasource.username", userInfo);
-                    }
-
-                    String query = uri.getQuery();
-                    StringBuilder jdbcUrl = new StringBuilder("jdbc:postgresql://")
-                            .append(host)
-                            .append(":")
-                            .append(port)
-                            .append("/")
-                            .append(path == null ? "" : path);
-
-                    if (query != null && !query.isBlank()) {
-                        jdbcUrl.append("?").append(query);
-                    } else {
-                        jdbcUrl.append("?sslmode=prefer");
-                    }
-
-                    props.put("spring.datasource.url", jdbcUrl.toString());
-                    props.put("spring.datasource.driver-class-name", "org.postgresql.Driver");
-                } catch (Exception e) {
-                    String jdbcUrl = uriString.replaceFirst("^postgres://", "jdbc:postgresql://")
-                                              .replaceFirst("^postgresql://", "jdbc:postgresql://");
-                    props.put("spring.datasource.url", jdbcUrl);
-                    props.put("spring.datasource.driver-class-name", "org.postgresql.Driver");
+                int port = (portStr != null && !portStr.isBlank()) ? Integer.parseInt(portStr) : 5432;
+                if (dbName == null || dbName.isBlank()) {
+                    dbName = "library360_database";
                 }
+
+                // Strip credentials completely from JDBC URL (org.postgresql.Driver rejects user:pass@ inside jdbcUrl)
+                StringBuilder cleanJdbcUrl = new StringBuilder("jdbc:postgresql://")
+                        .append(host)
+                        .append(":")
+                        .append(port)
+                        .append("/")
+                        .append(dbName);
+
+                if (query != null && !query.isBlank()) {
+                    cleanJdbcUrl.append("?").append(query);
+                } else {
+                    cleanJdbcUrl.append("?sslmode=prefer");
+                }
+
+                String finalUser = (explicitUser != null && !explicitUser.isBlank()) ? explicitUser : urlUser;
+                String finalPassword = (explicitPassword != null && !explicitPassword.isBlank()) ? explicitPassword : urlPass;
+
+                if (finalUser != null && !finalUser.isBlank()) {
+                    props.put("spring.datasource.username", finalUser);
+                }
+                if (finalPassword != null && !finalPassword.isBlank()) {
+                    props.put("spring.datasource.password", finalPassword);
+                }
+
+                props.put("spring.datasource.url", cleanJdbcUrl.toString());
+                props.put("spring.datasource.driver-class-name", "org.postgresql.Driver");
+
+                System.out.println(">>> [Library360] Normalized PostgreSQL JDBC URL: " + cleanJdbcUrl + " for user: " + finalUser);
             } else if (rawUrl.startsWith("jdbc:postgresql:")) {
-                props.put("spring.datasource.url", rawUrl);
+                // If it's already a JDBC URL, ensure any accidentally included credentials before '@' are cleaned
+                if (rawUrl.contains("@")) {
+                    String cleaned = rawUrl.replaceFirst("jdbc:postgresql://[^@]+@", "jdbc:postgresql://");
+                    props.put("spring.datasource.url", cleaned);
+                } else {
+                    props.put("spring.datasource.url", rawUrl);
+                }
                 props.put("spring.datasource.driver-class-name", "org.postgresql.Driver");
             }
+        }
+
+        if (explicitUser != null && !explicitUser.isBlank()) {
+            props.put("spring.datasource.username", explicitUser);
+        }
+        if (explicitPassword != null && !explicitPassword.isBlank()) {
+            props.put("spring.datasource.password", explicitPassword);
         }
 
         if (!props.isEmpty()) {
