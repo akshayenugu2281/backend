@@ -6,9 +6,9 @@ spring:
       enabled: true
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:library360}?sslmode=${DB_SSL_MODE:prefer}}}}
-    username: ${DB_USER:${DB_USERNAME:${POSTGRES_USER:library360}}}
-    password: ${DB_PASSWORD:${POSTGRES_PASSWORD:library360}}
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:${DB_URL:jdbc:postgresql://${DB_HOST:dpg-db6rqqd9fdbs73e4g25g-a}:${DB_PORT:5432}/${DB_NAME:library360_database}?sslmode=${DB_SSL_MODE:prefer}}}}
+    username: ${DB_USER:${DB_USERNAME:${POSTGRES_USER:library360_database_user}}}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD:hm6X6dswMOrsUVnvi5Y2kLxMdnYUSUw1}}
     driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
     hikari:
       maximum-pool-size: ${DB_POOL_MAX:10}
@@ -44,7 +44,7 @@ app:
     refresh-ttl: 7d
 
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000,https://*.vercel.app}
 
   seed:
     admin-email: ${ADMIN_EMAIL:admin@library360.local}
