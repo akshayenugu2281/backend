@@ -1,5 +1,5 @@
 -- ========================================================
--- Library360 Seed Data - V2 Reference Data
+-- Library360 Seed Data - V2 Reference Data (PostgreSQL)
 -- ========================================================
 
 -- Roles
@@ -49,8 +49,8 @@ INSERT INTO role_permissions (role_id, permission_id) VALUES
 INSERT INTO loan_policies (id, member_type, max_loans, loan_days, max_renewals, max_reservations,
                            fine_per_day, fine_cap, block_fine_threshold, hold_hours, updated_at, version)
 VALUES
-(1, 'STUDENT', 3, 14, 2, 3, 5.00, 200.00, 100.00, 48, NOW(6), 0),
-(2, 'FACULTY', 10, 30, 3, 10, 2.00, 200.00, 300.00, 48, NOW(6), 0);
+(1, 'STUDENT', 3, 14, 2, 3, 5.00, 200.00, 100.00, 48, CURRENT_TIMESTAMP, 0),
+(2, 'FACULTY', 10, 30, 3, 10, 2.00, 200.00, 300.00, 48, CURRENT_TIMESTAMP, 0);
 
 -- Default Categories
 INSERT INTO categories (id, name, slug, parent_id, description) VALUES
@@ -69,3 +69,9 @@ INSERT INTO categories (id, name, slug, parent_id, description) VALUES
 (13, 'Physics',           'physics',            3,    'Classical and modern physics'),
 (14, 'Chemistry',         'chemistry',          3,    'General and organic chemistry'),
 (15, 'Biology',           'biology',            3,    'Life sciences and biology');
+
+-- Synchronize PostgreSQL serial sequences after seeding explicit primary keys
+SELECT setval(pg_get_serial_sequence('roles', 'id'), COALESCE((SELECT MAX(id) FROM roles), 1));
+SELECT setval(pg_get_serial_sequence('permissions', 'id'), COALESCE((SELECT MAX(id) FROM permissions), 1));
+SELECT setval(pg_get_serial_sequence('loan_policies', 'id'), COALESCE((SELECT MAX(id) FROM loan_policies), 1));
+SELECT setval(pg_get_serial_sequence('categories', 'id'), COALESCE((SELECT MAX(id) FROM categories), 1));

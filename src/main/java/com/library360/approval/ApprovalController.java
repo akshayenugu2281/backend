@@ -43,12 +43,12 @@ public class ApprovalController {
         if (decision.equals("APPROVE")) {
             user.setApprovalStatus("APPROVED"); user.setEnabled(true); users.save(user);
             members.findByUserId(user.getId()).ifPresent(m -> { m.setStatus(com.library360.member.MemberStatus.ACTIVE); members.save(m); });
-            jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,`read`,created_at) VALUES(?,?,?,?,?,FALSE,NOW(6))", user.getId(), "ACCOUNT_APPROVED", "Library account approved", "Your college library account has been verified. You can now sign in to Library360.", "/login");
+            jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,\"read\",created_at) VALUES(?,?,?,?,?,FALSE,CURRENT_TIMESTAMP)", user.getId(), "ACCOUNT_APPROVED", "Library account approved", "Your college library account has been verified. You can now sign in to Library360.", "/login");
             return Map.of("id",id,"status","APPROVED","message","Account approved. The user can now sign in.");
         }
         user.setApprovalStatus("REJECTED"); user.setEnabled(false); users.save(user);
         members.findByUserId(user.getId()).ifPresent(m -> { m.setStatus(com.library360.member.MemberStatus.SUSPENDED); members.save(m); });
-        jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,`read`,created_at) VALUES(?,?,?,?,?,FALSE,NOW(6))", user.getId(), "ACCOUNT_REJECTED", "Library account requires follow-up", "Your registration was not approved. Please contact the library office for clarification.", "/help");
+        jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,\"read\",created_at) VALUES(?,?,?,?,?,FALSE,CURRENT_TIMESTAMP)", user.getId(), "ACCOUNT_REJECTED", "Library account requires follow-up", "Your registration was not approved. Please contact the library office for clarification.", "/help");
         return Map.of("id",id,"status","REJECTED","message","Registration rejected and sign-in disabled.");
     }
     private static void requireStaff(Jwt jwt) { List<String>a=jwt.getClaimAsStringList("authorities");if(a==null||(!a.contains("ROLE_ADMIN")&&!a.contains("ROLE_LIBRARIAN")))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Librarian or Admin role required."); }

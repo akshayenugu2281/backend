@@ -1,13 +1,13 @@
--- V7: unique accession numbers for every physical copy + circulation policy defaults.
+-- V7: unique accession numbers for every physical copy + circulation policy defaults (PostgreSQL).
 -- Never edit V1-V6; this migration is additive and preserves customized rows.
 
 -- 1. Accession number column (backfilled deterministically from the copy id).
-ALTER TABLE book_copies ADD COLUMN accession_number VARCHAR(40) NULL AFTER barcode;
+ALTER TABLE book_copies ADD COLUMN accession_number VARCHAR(40) NULL;
 UPDATE book_copies
-SET accession_number = CONCAT('ACC-', DATE_FORMAT(COALESCE(acquired_on, CURDATE()), '%Y'), '-', LPAD(id, 6, '0'))
+SET accession_number = CONCAT('ACC-', TO_CHAR(COALESCE(acquired_on, CURRENT_DATE), 'YYYY'), '-', LPAD(id::text, 6, '0'))
 WHERE accession_number IS NULL;
-ALTER TABLE book_copies MODIFY COLUMN accession_number VARCHAR(40) NOT NULL;
-ALTER TABLE book_copies ADD UNIQUE KEY uk_copy_accession (accession_number);
+ALTER TABLE book_copies ALTER COLUMN accession_number SET NOT NULL;
+ALTER TABLE book_copies ADD CONSTRAINT uk_copy_accession UNIQUE (accession_number);
 
 -- 2. Twelve-hour default pickup window (only rows still on the old 48h default;
 -- any administrator-customized hold window is left untouched).

@@ -25,7 +25,7 @@ public class NotificationController {
     @GetMapping
     public List<Notice> mine(@AuthenticationPrincipal Jwt jwt) {
         long id = Long.parseLong(jwt.getSubject());
-        return jdbc.query("SELECT id,type,title,body,link,`read`,created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 100",
+        return jdbc.query("SELECT id,type,title,body,link,\"read\",created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 100",
             (rs,n) -> new Notice(rs.getLong("id"), rs.getString("type"), rs.getString("title"), rs.getString("body"),
                 rs.getString("link"), rs.getBoolean("read"), rs.getTimestamp("created_at").toInstant().toString()), id);
     }
@@ -55,7 +55,7 @@ public class NotificationController {
 
     @PostMapping("/{id}/read")
     public Map<String,Boolean> read(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
-        int n=jdbc.update("UPDATE notifications SET `read`=TRUE,read_at=NOW(6) WHERE id=? AND user_id=?",id,Long.parseLong(jwt.getSubject()));
+        int n=jdbc.update("UPDATE notifications SET \"read\"=TRUE,read_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?",id,Long.parseLong(jwt.getSubject()));
         if(n==0) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Notification not found.");
         return Map.of("read",true);
     }
@@ -63,22 +63,22 @@ public class NotificationController {
     @PostMapping("/remind-overdue")
     public Map<String,Object> remindOverdue(@AuthenticationPrincipal Jwt jwt) {
         requireStaff(jwt);
-        int count=jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,`read`,created_at) " +
-            "SELECT DISTINCT u.id,'OVERDUE_REMINDER','Library book overdue','One or more books linked to your account are past their due date. Please return them or contact the librarian to discuss renewal and applicable fines.','/circulation',FALSE,NOW(6) " +
+        int count=jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,\"read\",created_at) " +
+            "SELECT DISTINCT u.id,'OVERDUE_REMINDER','Library book overdue','One or more books linked to your account are past their due date. Please return them or contact the librarian to discuss renewal and applicable fines.','/circulation',FALSE,CURRENT_TIMESTAMP " +
             "FROM users u JOIN members m ON m.user_id=u.id JOIN loans l ON l.member_id=m.id " +
-            "WHERE u.enabled=TRUE AND u.approval_status='APPROVED' AND l.status IN ('ACTIVE','OVERDUE') AND l.due_at<NOW(6) " +
-            "AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id=u.id AND n.type='OVERDUE_REMINDER' AND n.created_at>=DATE_SUB(NOW(6),INTERVAL 1 DAY))");
+            "WHERE u.enabled=TRUE AND u.approval_status='APPROVED' AND l.status IN ('ACTIVE','OVERDUE') AND l.due_at<CURRENT_TIMESTAMP " +
+            "AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id=u.id AND n.type='OVERDUE_REMINDER' AND n.created_at>=CURRENT_TIMESTAMP - INTERVAL '1 day')");
         return Map.of("sent",count);
     }
 
     @PostMapping("/remind-upcoming")
     public Map<String,Object> remindUpcoming(@AuthenticationPrincipal Jwt jwt) {
         requireStaff(jwt);
-        int count=jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,`read`,created_at) " +
-            "SELECT DISTINCT u.id,'DUE_SOON_REMINDER','Book due soon','A book on your account is due within 48 hours. Please check My Loans and return or renew the item if eligible.','/circulation',FALSE,NOW(6) " +
+        int count=jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,\"read\",created_at) " +
+            "SELECT DISTINCT u.id,'DUE_SOON_REMINDER','Book due soon','A book on your account is due within 48 hours. Please check My Loans and return or renew the item if eligible.','/circulation',FALSE,CURRENT_TIMESTAMP " +
             "FROM users u JOIN members m ON m.user_id=u.id JOIN loans l ON l.member_id=m.id " +
-            "WHERE u.enabled=TRUE AND u.approval_status='APPROVED' AND l.status IN ('ACTIVE','OVERDUE') AND l.due_at>=NOW(6) AND l.due_at<DATE_ADD(NOW(6),INTERVAL 48 HOUR) " +
-            "AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.user_id=u.id AND n.type='DUE_SOON_REMINDER' AND n.created_at>=DATE_SUB(NOW(6),INTERVAL 24 HOUR))");
+            "WHERE u.enabled=TRUE AND u.approval_status='APPROVED' AND l.status IN ('ACTIVE','OVERDUE') AND l.due_at>=CURRENT_TIMESTAMP AND l.due_at<CURRENT_TIMESTAMP + INTERVAL '48 hour' " +
+            "AND NOT EXISTS(SELECT 1 FROM notifications n WHERE n.user_id=u.id AND n.type='DUE_SOON_REMINDER' AND n.created_at>=CURRENT_TIMESTAMP - INTERVAL '24 hour')");
         return Map.of("sent",count);
     }
 
@@ -94,13 +94,13 @@ public class NotificationController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Link must be a relative in-app path up to 200 characters.");
         int count;
         if(req.allStudents()) {
-            count=jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,`read`,created_at) " +
-                "SELECT DISTINCT u.id,'LIBRARY_REMINDER',?,?,?,FALSE,NOW(6) FROM users u JOIN user_roles ur ON ur.user_id=u.id JOIN roles r ON r.id=ur.role_id " +
+            count=jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,\"read\",created_at) " +
+                "SELECT DISTINCT u.id,'LIBRARY_REMINDER',?,?,?,FALSE,CURRENT_TIMESTAMP FROM users u JOIN user_roles ur ON ur.user_id=u.id JOIN roles r ON r.id=ur.role_id " +
                 "WHERE r.name='STUDENT' AND u.enabled=TRUE AND u.approval_status='APPROVED'",title,body,link);
         } else {
             if(req.userId()==null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Choose a recipient or select all students.");
-            count=jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,`read`,created_at) " +
-                "SELECT DISTINCT u.id,'LIBRARY_REMINDER',?,?,?,FALSE,NOW(6) FROM users u JOIN user_roles ur ON ur.user_id=u.id JOIN roles r ON r.id=ur.role_id " +
+            count=jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,\"read\",created_at) " +
+                "SELECT DISTINCT u.id,'LIBRARY_REMINDER',?,?,?,FALSE,CURRENT_TIMESTAMP FROM users u JOIN user_roles ur ON ur.user_id=u.id JOIN roles r ON r.id=ur.role_id " +
                 "JOIN members m ON m.user_id=u.id WHERE u.id=? AND u.enabled=TRUE AND u.approval_status='APPROVED' AND m.status='ACTIVE' AND r.name IN ('STUDENT','FACULTY')",
                 title,body,link,req.userId());
             if(count==0) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Active recipient not found.");

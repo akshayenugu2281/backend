@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+    <comment>Library360 API Configuration</comment>
+
+    <!-- Spring Application & Virtual Threads -->
+    <entry key="spring.application.name">library360-api</entry>
+    <entry key="spring.threads.virtual.enabled">true</entry>
+
+    <!-- Datasource (PostgreSQL on Render) -->
+    <entry key="spring.datasource.url">${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:library360}?sslmode=${DB_SSL_MODE:prefer}}}</entry>
+    <entry key="spring.datasource.username">${DB_USER:library360}</entry>
+    <entry key="spring.datasource.password">${DB_PASSWORD:library360}</entry>
+    <entry key="spring.datasource.driver-class-name">${DB_DRIVER:org.postgresql.Driver}</entry>
+    <entry key="spring.datasource.hikari.maximum-pool-size">${DB_POOL_MAX:10}</entry>
+    <entry key="spring.datasource.hikari.minimum-idle">${DB_POOL_MIN:2}</entry>
+
+    <!-- JPA / Hibernate -->
+    <entry key="spring.jpa.open-in-view">false</entry>
+    <entry key="spring.jpa.hibernate.ddl-auto">validate</entry>
+    <entry key="spring.jpa.properties.hibernate.jdbc.time_zone">UTC</entry>
+    <entry key="spring.jpa.properties.hibernate.format_sql">false</entry>
+
+    <!-- Flyway Database Migrations -->
+    <entry key="spring.flyway.enabled">true</entry>
+    <entry key="spring.flyway.locations">classpath:db/migration</entry>
+    <entry key="spring.flyway.baseline-on-migrate">true</entry>
+
+    <!-- Mail Server -->
+    <entry key="spring.mail.host">${MAIL_HOST:localhost}</entry>
+    <entry key="spring.mail.port">${MAIL_PORT:1025}</entry>
+
+    <!-- App Security & Cookies -->
+    <entry key="app.auth.refresh-cookie-secure">${COOKIE_SECURE:true}</entry>
+    <entry key="app.auth.refresh-cookie-same-site">${COOKIE_SAME_SITE:}</entry>
+
+    <!-- JWT -->
+    <entry key="app.jwt.issuer">library360</entry>
+    <entry key="app.jwt.secret">${JWT_SECRET:ZXoIpXA0Hpvqcgzd8JmfNdR57ovFql0cE5+og0NC8WXZGJFbfJaM28x5HzeNijtN}</entry>
+    <entry key="app.jwt.access-ttl">15m</entry>
+    <entry key="app.jwt.refresh-ttl">7d</entry>
+
+    <!-- CORS -->
+    <entry key="app.cors.allowed-origins">${CORS_ORIGINS:http://localhost:5173}</entry>
+
+    <!-- Seed Users -->
+    <entry key="app.seed.admin-email">${ADMIN_EMAIL:admin@library360.local}</entry>
+    <entry key="app.seed.admin-password">${ADMIN_PASSWORD:Tuv300t10}</entry>
+    <entry key="app.seed.librarian-email">${LIBRARIAN_EMAIL:librarian@library360.local}</entry>
+    <entry key="app.seed.librarian-password">${LIBRARIAN_PASSWORD:tuv300t10}</entry>
+
+    <!-- App Environment & AI Settings -->
+    <entry key="app.timezone">UTC</entry>
+    <entry key="app.settings-encryption-key">${APP_SETTINGS_ENCRYPTION_KEY:Qk9zYkFhZ3d4d3h5c2VjcmV0a2V5c2VjdXJlMTIzNDU2Nzg5MA==}</entry>
+    <entry key="app.ai.default-model">${APP_AI_DEFAULT_MODEL:openai/gpt-4o-mini}</entry>
+
+    <!-- Server Port & Error Handling -->
+    <entry key="server.port">${PORT:8081}</entry>
+    <entry key="server.error.include-message">never</entry>
+    <entry key="server.error.include-binding-errors">never</entry>
+    <entry key="server.error.include-stacktrace">never</entry>
+
+    <!-- Actuator & Health Probes -->
+    <entry key="management.health.mail.enabled">false</entry>
+    <entry key="management.endpoints.web.exposure.include">health,info,prometheus</entry>
+    <entry key="management.endpoint.health.show-details">when-authorized</entry>
+    <entry key="management.endpoint.health.probes.enabled">true</entry>
+
+    <!-- OpenAPI / Swagger -->
+    <entry key="springdoc.swagger-ui.path">/swagger-ui</entry>
+    <entry key="springdoc.api-docs.path">/v3/api-docs</entry>
+
+    <!-- Logging -->
+    <entry key="logging.level.com.library360">INFO</entry>
+    <entry key="logging.level.org.springframework.security">WARN</entry>
+</properties>

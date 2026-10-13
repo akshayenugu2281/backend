@@ -8,6 +8,9 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import java.sql.Statement;
 import java.util.*;
 
 @RestController @RequestMapping("/api/v1/support") @RequiredArgsConstructor
@@ -31,9 +34,16 @@ public class SupportController {
     if(isStaff(jwt))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Staff should reply to an existing conversation or direct students to open a request.");
     String subject=clean(req.subject()),body=clean(req.message());
     if(subject==null||subject.length()>160||body==null||body.length()>3000)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Subject (1–160 characters) and message (1–3000 characters) are required.");
-    long uid=userId(jwt); jdbc.update("INSERT INTO support_conversations(requester_user_id,subject,status,created_at,updated_at) VALUES(?,?,'OPEN',NOW(6),NOW(6))",uid,subject);
-    long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
-    jdbc.update("INSERT INTO support_messages(conversation_id,sender_user_id,body,created_at) VALUES(?,?,?,NOW(6))",id,uid,body);
+    long uid=userId(jwt);
+    KeyHolder kh = new GeneratedKeyHolder();
+    jdbc.update(con -> {
+      var ps = con.prepareStatement("INSERT INTO support_conversations(requester_user_id,subject,status,created_at,updated_at) VALUES(?,?,'OPEN',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", new String[]{"id"});
+      ps.setLong(1, uid);
+      ps.setString(2, subject);
+      return ps;
+    }, kh);
+    long id = kh.getKey() != null ? kh.getKey().longValue() : 0L;
+    jdbc.update("INSERT INTO support_messages(conversation_id,sender_user_id,body,created_at) VALUES(?,?,?,CURRENT_TIMESTAMP)",id,uid,body);
     notifyLibraryTeam("New library support request", "A college member opened a support request: " + subject + ". Open Library support to reply.");
     return getConversation(jwt,id);
   }
@@ -42,7 +52,7 @@ public class SupportController {
   @Transactional
   public List<Message> messages(@AuthenticationPrincipal Jwt jwt,@PathVariable long id) {
     assertAccess(jwt,id);
-    jdbc.update("UPDATE support_messages SET read_at=NOW(6) WHERE conversation_id=? AND sender_user_id<>? AND read_at IS NULL",id,userId(jwt));
+    jdbc.update("UPDATE support_messages SET read_at=CURRENT_TIMESTAMP WHERE conversation_id=? AND sender_user_id<>? AND read_at IS NULL",id,userId(jwt));
     return jdbc.query("SELECT DISTINCT m.id,m.conversation_id,m.sender_user_id,u.full_name,u.email,m.body,m.created_at,(SELECT r.name FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=u.id ORDER BY r.name ASC LIMIT 1) role_name FROM support_messages m JOIN users u ON u.id=m.sender_user_id WHERE m.conversation_id=? ORDER BY m.created_at ASC, m.id ASC LIMIT 500",
       (rs,i)->new Message(rs.getLong("id"),rs.getLong("conversation_id"),rs.getLong("sender_user_id"),rs.getString("full_name"),rs.getString("role_name"),rs.getString("body"),rs.getTimestamp("created_at").toInstant().toString()),id);
   }
@@ -52,12 +62,12 @@ public class SupportController {
     assertAccess(jwt,id); String body=clean(req.body()); if(body==null||body.length()>3000)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Message must contain 1–3000 characters.");
     String status=jdbc.queryForObject("SELECT status FROM support_conversations WHERE id=?",String.class,id);
     if("CLOSED".equals(status))throw new ResponseStatusException(HttpStatus.CONFLICT,"This conversation is closed. Open a new support request if you need more help.");
-    long uid=userId(jwt); jdbc.update("INSERT INTO support_messages(conversation_id,sender_user_id,body,created_at) VALUES(?,?,?,NOW(6))",id,uid,body);
+    long uid=userId(jwt); jdbc.update("INSERT INTO support_messages(conversation_id,sender_user_id,body,created_at) VALUES(?,?,?,CURRENT_TIMESTAMP)",id,uid,body);
     if(isStaff(jwt)) {
-      jdbc.update("UPDATE support_conversations SET assigned_staff_id=COALESCE(assigned_staff_id,?),updated_at=NOW(6) WHERE id=?",uid,id);
-      jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,`read`,created_at) SELECT requester_user_id,'SUPPORT_REPLY','Library team replied',CONCAT('A reply was added to your support request: ',subject),'/support',FALSE,NOW(6) FROM support_conversations WHERE id=?",id);
+      jdbc.update("UPDATE support_conversations SET assigned_staff_id=COALESCE(assigned_staff_id,?),updated_at=CURRENT_TIMESTAMP WHERE id=?",uid,id);
+      jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,\"read\",created_at) SELECT requester_user_id,'SUPPORT_REPLY','Library team replied',CONCAT('A reply was added to your support request: ',subject),'/support',FALSE,CURRENT_TIMESTAMP FROM support_conversations WHERE id=?",id);
     } else {
-      jdbc.update("UPDATE support_conversations SET updated_at=NOW(6),status='OPEN' WHERE id=?",id);
+      jdbc.update("UPDATE support_conversations SET updated_at=CURRENT_TIMESTAMP,status='OPEN' WHERE id=?",id);
       notifyLibraryTeam("New reply in library support", "A college member replied to an open support conversation. Open Library support to respond.");
     }
     return messages(jwt,id).getLast();
@@ -67,14 +77,14 @@ public class SupportController {
   public Map<String,Object> status(@AuthenticationPrincipal Jwt jwt,@PathVariable long id,@RequestParam String value) {
     if(!isStaff(jwt))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Only Librarian/Admin staff can change ticket status.");
     String v=value==null?"":value.toUpperCase(Locale.ROOT);if(!Set.of("OPEN","IN_PROGRESS","CLOSED").contains(v))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Status must be OPEN, IN_PROGRESS, or CLOSED.");
-    int count=jdbc.update("UPDATE support_conversations SET status=?,assigned_staff_id=COALESCE(assigned_staff_id,?),closed_at=IF(?='CLOSED',NOW(6),NULL),updated_at=NOW(6) WHERE id=?",v,userId(jwt),v,id);
+    int count=jdbc.update("UPDATE support_conversations SET status=?,assigned_staff_id=COALESCE(assigned_staff_id,?),closed_at=CASE WHEN ?='CLOSED' THEN CURRENT_TIMESTAMP ELSE NULL END,updated_at=CURRENT_TIMESTAMP WHERE id=?",v,userId(jwt),v,id);
     if(count==0)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Conversation not found.");return Map.of("id",id,"status",v);
   }
 
 
   private void notifyLibraryTeam(String title, String body) {
-    jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,`read`,created_at) " +
-      "SELECT DISTINCT u.id,'SUPPORT_MESSAGE',?,?, '/support',FALSE,NOW(6) FROM users u " +
+    jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,\"read\",created_at) " +
+      "SELECT DISTINCT u.id,'SUPPORT_MESSAGE',?,?, '/support',FALSE,CURRENT_TIMESTAMP FROM users u " +
       "JOIN user_roles ur ON ur.user_id=u.id JOIN roles r ON r.id=ur.role_id " +
       "WHERE r.name IN ('ADMIN','LIBRARIAN') AND u.enabled=TRUE AND u.approval_status='APPROVED'", title, body);
   }

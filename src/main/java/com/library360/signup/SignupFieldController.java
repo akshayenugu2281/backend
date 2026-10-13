@@ -45,8 +45,12 @@ public class SignupFieldController {
             String key = type + ":" + f.fieldKey();
             if (!seen.add(key)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate signup field rule: " + key);
             if (f.required() && !f.enabled()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A disabled field cannot be required.");
-            jdbc.update("INSERT INTO signup_field_settings(account_type,field_key,label,enabled,required_flag,sort_order) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE label=VALUES(label),enabled=VALUES(enabled),required_flag=VALUES(required_flag),sort_order=VALUES(sort_order)",
-                type, f.fieldKey(), f.label().trim(), f.enabled(), f.required(), f.sortOrder());
+            int n = jdbc.update("UPDATE signup_field_settings SET label=?,enabled=?,required_flag=?,sort_order=?,updated_at=CURRENT_TIMESTAMP WHERE account_type=? AND field_key=?",
+                f.label().trim(), f.enabled(), f.required(), f.sortOrder(), type, f.fieldKey());
+            if (n == 0) {
+                jdbc.update("INSERT INTO signup_field_settings(account_type,field_key,label,enabled,required_flag,sort_order,updated_at) VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP)",
+                    type, f.fieldKey(), f.label().trim(), f.enabled(), f.required(), f.sortOrder());
+            }
         }
         return Map.of("updated", input.size(), "message", "Signup form settings saved. Changes apply to new registrations.");
     }

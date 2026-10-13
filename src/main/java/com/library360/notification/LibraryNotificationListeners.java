@@ -50,7 +50,7 @@ public class LibraryNotificationListeners {
     }
 
     private void insert(Long userId, String type, String title, String body, String link) {
-        jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,`read`,created_at) VALUES(?,?,?,?,?,FALSE,NOW(6))",
+        jdbc.update("INSERT INTO notifications(user_id,type,title,body,link,\"read\",created_at) VALUES(?,?,?,?,?,FALSE,CURRENT_TIMESTAMP)",
             userId, type, title.length()>150?title.substring(0,150):title, body.length()>500?body.substring(0,500):body, link);
     }
 

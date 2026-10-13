@@ -6,12 +6,13 @@ spring:
       enabled: true
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:library360}?createDatabaseIfNotExist=true&useSSL=${DB_SSL:false}&serverTimezone=UTC&allowPublicKeyRetrieval=true}}
+    url: ${SPRING_DATASOURCE_URL:${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:library360}?sslmode=${DB_SSL_MODE:prefer}}}
     username: ${DB_USER:library360}
-    password: ${DB_PASSWORD:system}
+    password: ${DB_PASSWORD:library360}
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN:2}
 
   jpa:
     open-in-view: false
@@ -21,7 +22,7 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
-        format_sql: true
+        format_sql: false
 
   flyway:
     enabled: true

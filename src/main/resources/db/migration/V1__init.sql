@@ -1,33 +1,33 @@
 -- ========================================================
--- Library360 Database Schema - V1 Initial Migration
+-- Library360 Database Schema - V1 Initial Migration (PostgreSQL)
 -- ========================================================
 
 -- ========== IDENTITY & ACCESS ==========
 CREATE TABLE users (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     email VARCHAR(160) NOT NULL UNIQUE,
     password_hash VARCHAR(100) NOT NULL,
     full_name VARCHAR(120) NOT NULL,
     avatar_url VARCHAR(500),
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     failed_logins INT NOT NULL DEFAULT 0,
-    locked_until DATETIME(6) NULL,
-    created_at DATETIME(6) NOT NULL,
-    updated_at DATETIME(6) NOT NULL,
-    version BIGINT NOT NULL DEFAULT 0,
-    INDEX idx_user_email (email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    locked_until TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_user_email ON users (email);
 
 CREATE TABLE roles (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(40) NOT NULL UNIQUE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE permissions (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     code VARCHAR(60) NOT NULL UNIQUE,
     description VARCHAR(200)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE user_roles (
     user_id BIGINT NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE user_roles (
     PRIMARY KEY (user_id, role_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (role_id) REFERENCES roles(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE role_permissions (
     role_id BIGINT NOT NULL,
@@ -43,26 +43,26 @@ CREATE TABLE role_permissions (
     PRIMARY KEY (role_id, permission_id),
     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
     FOREIGN KEY (permission_id) REFERENCES permissions(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE refresh_tokens (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
     token_hash CHAR(64) NOT NULL UNIQUE,
     family_id CHAR(36) NOT NULL,
-    expires_at DATETIME(6) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
     revoked BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at DATETIME(6) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
     user_agent VARCHAR(255),
     ip_address VARCHAR(45),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_rt_family (family_id),
-    INDEX idx_rt_hash (token_hash)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_rt_family ON refresh_tokens (family_id);
+CREATE INDEX idx_rt_hash ON refresh_tokens (token_hash);
 
 -- ========== MEMBERS & POLICY ==========
 CREATE TABLE loan_policies (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     member_type VARCHAR(20) NOT NULL UNIQUE,
     max_loans INT NOT NULL,
     loan_days INT NOT NULL,
@@ -72,12 +72,12 @@ CREATE TABLE loan_policies (
     fine_cap DECIMAL(10,2) NOT NULL,
     block_fine_threshold DECIMAL(10,2) NOT NULL,
     hold_hours INT NOT NULL DEFAULT 48,
-    updated_at DATETIME(6) NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     version BIGINT NOT NULL DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE members (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL UNIQUE,
     member_code VARCHAR(30) NOT NULL UNIQUE,
     member_type VARCHAR(20) NOT NULL,
@@ -86,45 +86,45 @@ CREATE TABLE members (
     address TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     valid_until DATE NOT NULL,
-    created_at DATETIME(6) NOT NULL,
-    updated_at DATETIME(6) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    INDEX idx_member_code (member_code),
-    INDEX idx_member_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+CREATE INDEX idx_member_code ON members (member_code);
+CREATE INDEX idx_member_status ON members (status);
 
 -- ========== CATALOG ==========
 CREATE TABLE categories (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(120) NOT NULL UNIQUE,
     parent_id BIGINT NULL,
     description VARCHAR(300),
-    FOREIGN KEY (parent_id) REFERENCES categories(id),
-    INDEX idx_cat_slug (slug)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    FOREIGN KEY (parent_id) REFERENCES categories(id)
+);
+CREATE INDEX idx_cat_slug ON categories (slug);
 
 CREATE TABLE publishers (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name VARCHAR(150) NOT NULL UNIQUE,
     website VARCHAR(300),
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE authors (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     full_name VARCHAR(150) NOT NULL,
     bio TEXT,
-    created_at DATETIME(6) NOT NULL,
-    updated_at DATETIME(6) NOT NULL,
-    version BIGINT NOT NULL DEFAULT 0,
-    INDEX idx_author_name (full_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_author_name ON authors (full_name);
 
 CREATE TABLE books (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     isbn13 CHAR(13) UNIQUE,
     title VARCHAR(255) NOT NULL,
     subtitle VARCHAR(255),
@@ -137,16 +137,15 @@ CREATE TABLE books (
     category_id BIGINT,
     publisher_id BIGINT,
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at DATETIME(6) NOT NULL,
-    updated_at DATETIME(6) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     created_by VARCHAR(160),
     version BIGINT NOT NULL DEFAULT 0,
     FOREIGN KEY (category_id) REFERENCES categories(id),
-    FOREIGN KEY (publisher_id) REFERENCES publishers(id),
-    FULLTEXT INDEX ft_books (title, subtitle, description),
-    INDEX idx_book_isbn (isbn13),
-    INDEX idx_book_title (title)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    FOREIGN KEY (publisher_id) REFERENCES publishers(id)
+);
+CREATE INDEX idx_book_isbn ON books (isbn13);
+CREATE INDEX idx_book_title ON books (title);
 
 CREATE TABLE book_authors (
     book_id BIGINT NOT NULL,
@@ -154,72 +153,72 @@ CREATE TABLE book_authors (
     PRIMARY KEY (book_id, author_id),
     FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
     FOREIGN KEY (author_id) REFERENCES authors(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);
 
 CREATE TABLE book_copies (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     book_id BIGINT NOT NULL,
     barcode VARCHAR(40) NOT NULL UNIQUE,
     shelf VARCHAR(40),
-    `condition` VARCHAR(20) NOT NULL DEFAULT 'GOOD',
+    "condition" VARCHAR(20) NOT NULL DEFAULT 'GOOD',
     status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
     acquired_on DATE,
     notes VARCHAR(300),
-    created_at DATETIME(6) NOT NULL,
-    updated_at DATETIME(6) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
-    FOREIGN KEY (book_id) REFERENCES books(id),
-    INDEX idx_copy_barcode (barcode),
-    INDEX idx_copy_book_status (book_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    FOREIGN KEY (book_id) REFERENCES books(id)
+);
+CREATE INDEX idx_copy_barcode ON book_copies (barcode);
+CREATE INDEX idx_copy_book_status ON book_copies (book_id, status);
 
 -- ========== CIRCULATION ==========
 CREATE TABLE loans (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     copy_id BIGINT NOT NULL,
     member_id BIGINT NOT NULL,
-    issued_at DATETIME(6) NOT NULL,
-    due_at DATETIME(6) NOT NULL,
-    returned_at DATETIME(6),
+    issued_at TIMESTAMP NOT NULL,
+    due_at TIMESTAMP NOT NULL,
+    returned_at TIMESTAMP,
     renew_count INT NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL,
     issued_by BIGINT NOT NULL,
     returned_by BIGINT,
     notes VARCHAR(300),
-    created_at DATETIME(6) NOT NULL,
-    updated_at DATETIME(6) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
     FOREIGN KEY (copy_id) REFERENCES book_copies(id),
     FOREIGN KEY (member_id) REFERENCES members(id),
-    FOREIGN KEY (issued_by) REFERENCES users(id),
-    INDEX idx_loan_member_status (member_id, status),
-    INDEX idx_loan_due (status, due_at),
-    INDEX idx_loan_copy (copy_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    FOREIGN KEY (issued_by) REFERENCES users(id)
+);
+CREATE INDEX idx_loan_member_status ON loans (member_id, status);
+CREATE INDEX idx_loan_due ON loans (status, due_at);
+CREATE INDEX idx_loan_copy ON loans (copy_id, status);
 
 CREATE TABLE reservations (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     book_id BIGINT NOT NULL,
     member_id BIGINT NOT NULL,
     status VARCHAR(20) NOT NULL,
-    queued_at DATETIME(6) NOT NULL,
-    ready_at DATETIME(6),
-    expires_at DATETIME(6),
+    queued_at TIMESTAMP NOT NULL,
+    ready_at TIMESTAMP,
+    expires_at TIMESTAMP,
     assigned_copy_id BIGINT,
-    created_at DATETIME(6) NOT NULL,
-    updated_at DATETIME(6) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
     FOREIGN KEY (book_id) REFERENCES books(id),
     FOREIGN KEY (member_id) REFERENCES members(id),
-    FOREIGN KEY (assigned_copy_id) REFERENCES book_copies(id),
-    INDEX idx_res_queue (book_id, status, queued_at),
-    INDEX idx_res_member (member_id, status),
-    INDEX idx_res_expiry (status, expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    FOREIGN KEY (assigned_copy_id) REFERENCES book_copies(id)
+);
+CREATE INDEX idx_res_queue ON reservations (book_id, status, queued_at);
+CREATE INDEX idx_res_member ON reservations (member_id, status);
+CREATE INDEX idx_res_expiry ON reservations (status, expires_at);
 
 -- ========== FINES ==========
 CREATE TABLE fines (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     loan_id BIGINT,
     member_id BIGINT NOT NULL,
     reason VARCHAR(20) NOT NULL,
@@ -228,31 +227,31 @@ CREATE TABLE fines (
     status VARCHAR(20) NOT NULL,
     waive_note VARCHAR(255),
     waived_by BIGINT,
-    created_at DATETIME(6) NOT NULL,
-    updated_at DATETIME(6) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
     FOREIGN KEY (loan_id) REFERENCES loans(id),
     FOREIGN KEY (member_id) REFERENCES members(id),
-    UNIQUE KEY uq_fine_loan_reason (loan_id, reason),
-    INDEX idx_fine_member_status (member_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    CONSTRAINT uq_fine_loan_reason UNIQUE (loan_id, reason)
+);
+CREATE INDEX idx_fine_member_status ON fines (member_id, status);
 
 CREATE TABLE payments (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     fine_id BIGINT NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
     method VARCHAR(20) NOT NULL,
     receipt_no VARCHAR(30) NOT NULL UNIQUE,
     collected_by BIGINT NOT NULL,
-    paid_at DATETIME(6) NOT NULL,
+    paid_at TIMESTAMP NOT NULL,
     FOREIGN KEY (fine_id) REFERENCES fines(id),
-    FOREIGN KEY (collected_by) REFERENCES users(id),
-    INDEX idx_payment_fine (fine_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    FOREIGN KEY (collected_by) REFERENCES users(id)
+);
+CREATE INDEX idx_payment_fine ON payments (fine_id);
 
 -- ========== ACTIVITY & NOTIFICATIONS ==========
 CREATE TABLE audit_logs (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     actor_id BIGINT,
     actor_email VARCHAR(160),
     action VARCHAR(60) NOT NULL,
@@ -260,23 +259,23 @@ CREATE TABLE audit_logs (
     entity_id VARCHAR(40),
     details JSON,
     ip_address VARCHAR(45),
-    created_at DATETIME(6) NOT NULL,
-    INDEX idx_audit_entity (entity_type, entity_id),
-    INDEX idx_audit_time (created_at),
-    INDEX idx_audit_actor (actor_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    created_at TIMESTAMP NOT NULL
+);
+CREATE INDEX idx_audit_entity ON audit_logs (entity_type, entity_id);
+CREATE INDEX idx_audit_time ON audit_logs (created_at);
+CREATE INDEX idx_audit_actor ON audit_logs (actor_id);
 
 CREATE TABLE notifications (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
     type VARCHAR(40) NOT NULL,
     title VARCHAR(150) NOT NULL,
     body VARCHAR(500),
     link VARCHAR(255),
-    `read` BOOLEAN NOT NULL DEFAULT FALSE,
-    read_at DATETIME(6),
-    created_at DATETIME(6) NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_notif_user (user_id, `read`),
-    INDEX idx_notif_created (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    "read" BOOLEAN NOT NULL DEFAULT FALSE,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_notif_user ON notifications (user_id, "read");
+CREATE INDEX idx_notif_created ON notifications (created_at);
